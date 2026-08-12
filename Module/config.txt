@@ -1,0 +1,6 @@
+# Fix HDR Color Configuration
+# Target packages list for service.sh
+
+com.facebook.katana
+com.google.android.youtube
+com.instagram.android

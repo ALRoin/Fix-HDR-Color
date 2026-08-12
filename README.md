@@ -1,0 +1,1 @@
+Fix HDR Color by automatically disabling HW overlays when specific target apps enter the foreground.

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix HDR Color Configurator</title>
+    <style>
+        :root {
+            --bg-color: #090a0f;         
+            --surface-color: #13151f;    
+            --card-color: #1b1e2b;       
+            --text-main: #f3f4f6;        
+            --text-muted: #858aa0;       
+            --accent-color: #dfbb6c;     
+            --accent-hover: #cfa856;
+            --border-color: #242838;     
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column;
+            height: 100vh;
+        }
+
+        .header {
+            background-color: var(--surface-color);
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky; top: 0; z-index: 10;
+        }
+
+        .header-title-row {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px;
+        }
+
+        h2 { 
+            margin: 0; font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text-main); 
+        }
+
+        .btn {
+            padding: 8px 14px; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .btn-primary { background: var(--accent-color); color: #000; }
+        .btn-primary:active { background: var(--accent-hover); }
+
+        .search-container { 
+            width: 100%; 
+            display: flex; 
+            gap: 8px; 
+            align-items: center; 
+        }
+        
+        .search-input {
+            flex: 1; min-width: 0; padding: 10px 14px; background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-main); font-size: 0.85rem; outline: none; transition: border-color 0.2s ease;
+        }
+        
+        .search-input:focus { border-color: var(--accent-color); }
+
+        .icon-dropdown {
+            background-color: var(--bg-color);
+            color: var(--accent-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+            text-align-last: center;
+            cursor: pointer;
+            outline: none;
+            flex-shrink: 0;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+        }
+
+        .icon-dropdown:focus {
+            border-color: var(--accent-color);
+        }
+
+        .icon-dropdown option {
+            background-color: var(--surface-color);
+            color: var(--text-main);
+            font-size: 0.85rem;
+            text-align: left;
+        }
+
+        .app-list { flex: 1; overflow-y: auto; padding: 16px 12px; }
+        .app-item {
+            display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background-color: var(--surface-color); margin-bottom: 10px; border-radius: 10px; border: 1px solid var(--border-color); transition: transform 0.1s ease, border-color 0.2s ease;
+            cursor: pointer;
+        }
+        .app-item:active { background-color: var(--card-color); border-color: #3b415a; }
+        .app-details { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+        
+        .app-name-row { display: flex; align-items: center; gap: 8px; }
+        .app-name {
+            font-size: 1.05rem; font-weight: 700; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-main); letter-spacing: -0.01em;
+        }
+        .badge-system {
+            font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid #3b82f6; font-weight: 600;
+        }
+
+        .app-codename {
+            font-size: 0.8rem; margin: 4px 0 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace;
+            color: #e5e7eb;
+        }
+
+        .checkbox-container {
+            position: relative; width: 22px; height: 22px; cursor: pointer; user-select: none; margin-left: 16px; flex-shrink: 0;
+        }
+        .checkbox-container input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
+        .checkmark {
+            position: absolute; top: 0; left: 0; height: 22px; width: 22px; background-color: var(--bg-color); border-radius: 6px; border: 2px solid var(--accent-color); transition: all 0.2s ease;
+        }
+        .checkbox-container input:checked ~ .checkmark { background-color: var(--accent-color); border-color: var(--accent-color); }
+        .checkmark:after { content: ""; position: absolute; display: none; }
+        .checkbox-container input:checked ~ .checkmark:after { display: block; }
+        .checkbox-container .checkmark:after {
+            left: 6px; top: 2px; width: 5px; height: 10px; border: solid #000; border-width: 0 3px 3px 0; transform: rotate(45deg);
+        }
+
+        .loading {
+            display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 60px 20px; color: var(--text-muted); font-size: 0.9rem;
+        }
+        .spinner {
+            width: 40px; height: 40px; border: 3px solid var(--border-color); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-title-row">
+            <h2>Fix HDR Target Apps</h2>
+            <button class="btn btn-primary" id="btn-save-config">Save Target Apps</button>
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="search-bar" class="search-input" placeholder="Search app name or package...">
+            <select id="action-dropdown" class="icon-dropdown" title="Menu Actions">
+                <option value="" disabled selected hidden>⋮</option>
+                <option value="toggle-system" id="opt-toggle-system">System Apps: OFF</option>
+                <option value="select-all">Select All</option>
+                <option value="clear-all">Clear All</option>
+                <option value="reload">Reload App List</option>
+            </select>
+        </div>
+    </header>
+
+    <main class="app-list" id="app-list"></main>
+
+    <script type="module">
+        import { listPackages, getPackagesInfo, exec, toast } from './kernelsu.js';
+
+        const CONFIG_PATH = "/data/adb/modules/fix_hdr/config.txt";
+
+        let allApps = [];
+        let selectedPackages = new Set();
+        let savedPackages = new Set();
+        let searchQuery = "";
+        let includeSystemApps = false;
+
+        const generateFallbackName = (pkg) => {
+            const parts = pkg.split('.');
+            let fallback = parts[parts.length - 1];
+            return fallback.charAt(0).toUpperCase() + fallback.slice(1);
+        };
+
+        async function fetchPackageList(type) {
+            const maxAttempts = 20;
+            for (let i = 0; i < maxAttempts; i++) {
+                let pkgs = [];
+                try {
+                    pkgs = listPackages(type);
+                } catch (e) {}
+
+                if (pkgs && pkgs.length > 0) return pkgs;
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            return [];
+        }
+
+        async function loadApps() {
+            const listDiv = document.getElementById('app-list');
+            if (listDiv) {
+                listDiv.innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <div>Loading ${includeSystemApps ? 'user and system' : 'user'} apps... Please wait.</div>
+                    </div>
+                `;
+            }
+
+            try {
+                if (typeof ksu === 'undefined') {
+                    throw new Error("KernelSU API missing.");
+                }
+
+                let userPkgs = await fetchPackageList('user');
+                let systemPkgs = [];
+
+                if (includeSystemApps) {
+                    systemPkgs = await fetchPackageList('system');
+                }
+
+                const sysSet = new Set(systemPkgs);
+                const combinedPkgs = Array.from(new Set([...userPkgs, ...systemPkgs]));
+
+                if (combinedPkgs.length === 0) {
+                    if (listDiv) listDiv.innerHTML = '<div class="loading">No apps found.</div>';
+                    return;
+                }
+
+                let infoArr = [];
+                try {
+                    infoArr = getPackagesInfo(combinedPkgs);
+                } catch (e) {}
+
+                allApps = infoArr.map(info => {
+                    let cleanName = info.appLabel;
+                    if (!cleanName || cleanName === info.packageName) {
+                        cleanName = generateFallbackName(info.packageName);
+                    }
+                    return { 
+                        packageName: info.packageName, 
+                        appName: cleanName,
+                        isSystem: sysSet.has(info.packageName) && !userPkgs.includes(info.packageName)
+                    };
+                });
+                
+                const configRes = await exec(`cat "${CONFIG_PATH}" 2>/dev/null`);
+                
+                selectedPackages.clear();
+                savedPackages.clear();
+                if (configRes.errno === 0 && configRes.stdout && configRes.stdout.trim().length > 0) {
+                    configRes.stdout.split("\n").forEach(line => {
+                        let t = line.trim(); 
+                        if (!t || t.startsWith('#')) return;
+                        if (t.includes('.')) {
+                            selectedPackages.add(t);
+                            savedPackages.add(t);
+                        }
+                    });
+                }
+                
+                renderList();
+            } catch (err) { 
+                if (listDiv) listDiv.innerHTML = `<div class="loading">Error loading apps: ${err.message || err}</div>`;
+            }
+        }
+
+        function toggleSystemApps() {
+            includeSystemApps = !includeSystemApps;
+            const opt = document.getElementById('opt-toggle-system');
+            if (includeSystemApps) {
+                opt.innerText = "System Apps: ON";
+            } else {
+                opt.innerText = "System Apps: OFF";
+            }
+            loadApps();
+        }
+
+        function selectAll(check) {
+            allApps.forEach(app => {
+                if (!searchQuery || app.appName.toLowerCase().includes(searchQuery) || app.packageName.toLowerCase().includes(searchQuery)) {
+                    if (check) {
+                        selectedPackages.add(app.packageName);
+                    } else {
+                        selectedPackages.delete(app.packageName);
+                    }
+                }
+            });
+            renderList();
+        }
+
+        function togglePackage(pkg) {
+            if (selectedPackages.has(pkg)) {
+                selectedPackages.delete(pkg);
+            } else {
+                selectedPackages.add(pkg);
+            }
+            renderList();
+        }
+
+        function renderList() {
+            const listDiv = document.getElementById('app-list');
+            if (!listDiv) return;
+            listDiv.innerHTML = '';
+            
+            let filtered = allApps.filter(app => !searchQuery || app.appName.toLowerCase().includes(searchQuery) || app.packageName.toLowerCase().includes(searchQuery));
+            
+            // Only prioritize apps that are actually saved in config.txt (savedPackages)
+            filtered.sort((a, b) => {
+                const aSaved = savedPackages.has(a.packageName);
+                const bSaved = savedPackages.has(b.packageName);
+
+                if (aSaved && !bSaved) return -1;
+                if (!aSaved && bSaved) return 1;
+
+                return a.appName.localeCompare(b.appName, undefined, { numeric: true, sensitivity: 'base' });
+            });
+
+            if (filtered.length === 0) {
+                listDiv.innerHTML = `<div class="loading">No apps match your search.</div>`;
+                return;
+            }
+
+            const frag = document.createDocumentFragment();
+            filtered.forEach(app => {
+                const pkg = app.packageName;
+                const item = document.createElement('div');
+                item.className = 'app-item';
+                item.setAttribute('data-package-id', pkg);
+                item.innerHTML = `
+                    <div class="app-details">
+                        <div class="app-name-row">
+                            <p class="app-name">${app.appName}</p>
+                            ${app.isSystem ? '<span class="badge-system">SYSTEM</span>' : ''}
+                        </div>
+                        <p class="app-codename">${pkg}</p>
+                    </div>
+                    <label class="checkbox-container" style="pointer-events: none;">
+                        <input type="checkbox" value="${pkg}" ${selectedPackages.has(pkg) ? 'checked' : ''}>
+                        <span class="checkmark"></span>
+                    </label>
+                `;
+                frag.appendChild(item);
+            });
+            listDiv.appendChild(frag);
+        }
+
+        async function saveConfig() {
+            if (typeof ksu === 'undefined') return;
+            
+            let content = "# Fix HDR Color Configuration\n" +
+                          "# Target packages list for service.sh\n\n";
+                          
+            Array.from(selectedPackages).sort().forEach(p => content += `${p}\n`);
+
+            try {
+                const b64 = btoa(unescape(encodeURIComponent(content)));
+                const cmd = `mkdir -p /data/adb/modules/fix_hdr && echo "${b64}" | base64 -d > "${CONFIG_PATH}" && chmod 666 "${CONFIG_PATH}"`;
+                
+                const res = await exec(cmd);
+                if (res.errno === 0) {
+                    savedPackages = new Set(selectedPackages);
+                    renderList();
+                    toast("Target apps saved!");
+                } else {
+                    toast("Failed to save target apps.");
+                }
+            } catch (err) { 
+                toast("Error saving config.");
+            }
+        }
+
+        document.getElementById('action-dropdown').addEventListener('change', async (e) => {
+            const val = e.target.value;
+            e.target.value = ""; 
+
+            if (val === 'toggle-system') {
+                toggleSystemApps();
+            } else if (val === 'select-all') {
+                selectAll(true);
+            } else if (val === 'clear-all') {
+                selectAll(false);
+            } else if (val === 'reload') {
+                await loadApps();
+            }
+        });
+
+        document.getElementById('btn-save-config').addEventListener('click', saveConfig);
+        document.getElementById('search-bar').addEventListener('input', (e) => {
+            searchQuery = e.target.value.toLowerCase().trim();
+            renderList();
+        });
+
+        document.getElementById('app-list').addEventListener('click', (e) => {
+            const targetItem = e.target.closest('.app-item');
+            if (!targetItem) return;
+            const pkg = targetItem.getAttribute('data-package-id');
+            togglePackage(pkg);
+        });
+
+        window.addEventListener('DOMContentLoaded', loadApps);
+    </script>
+</body>
+</html>
