@@ -4,3 +4,4 @@ version=v1.0
 versionCode=1
 author=Roz
 description=Fix HDR Color by automatically disabling HW overlays when specific target apps enter the foreground.
+updateJson=https://raw.githubusercontent.com/ALRoin/Fix-HDR-Color/main/update.json
