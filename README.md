@@ -1,3 +1,4 @@
+# KernelSu Module
 ## Fix HDR Color by automatically disabling HW overlays
 
 ### There are two choices:
