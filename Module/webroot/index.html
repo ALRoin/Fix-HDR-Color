@@ -298,17 +298,34 @@
         };
 
         async function fetchPackageList(type) {
-            const maxAttempts = 20;
+            const maxAttempts = 35;
+            let lastLength = -1;
+            let consecutiveStableMatches = 0;
+
             for (let i = 0; i < maxAttempts; i++) {
-                let pkgs = [];
+                let currentPkgs = [];
                 try {
-                    pkgs = listPackages(type);
+                    currentPkgs = listPackages(type);
                 } catch (e) {}
 
-                if (pkgs && pkgs.length > 0) return pkgs;
-                await new Promise(resolve => setTimeout(resolve, 200));
+                if (currentPkgs && currentPkgs.length > 0) {
+                    if (currentPkgs.length === lastLength) {
+                        consecutiveStableMatches++;
+                        if (consecutiveStableMatches >= 2) {
+                            return currentPkgs;
+                        }
+                    } else {
+                        consecutiveStableMatches = 0;
+                        lastLength = currentPkgs.length;
+                    }
+                }
+                await new Promise(resolve => setTimeout(resolve, 300));
             }
-            return [];
+            try {
+                return listPackages(type);
+            } catch (e) {
+                return [];
+            }
         }
 
         async function loadApps() {
@@ -632,7 +649,15 @@
             togglePackage(pkg);
         });
 
-        window.addEventListener('DOMContentLoaded', loadApps);
+        async function lifecycleInitializer() {
+            for (let i = 0; i < 20; i++) {
+                if (typeof ksu !== 'undefined') break;
+                await new Promise(r => setTimeout(r, 75));
+            }
+            loadApps();
+        }
+
+        window.addEventListener('DOMContentLoaded', lifecycleInitializer);
     </script>
 </body>
 </html>
