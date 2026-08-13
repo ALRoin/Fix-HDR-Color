@@ -15,6 +15,8 @@ fi
 if [ -f "$MODDIR/service.sh" ]; then
     echo "fix-hdr: launching service.sh live" >> /dev/kmsg
     sh "$MODDIR/service.sh" &
+else
+    echo "fix-hdr: WARNING - service.sh not found, nothing to launch" >> /dev/kmsg
 fi
 
 echo "fix-hdr: hot-install completed successfully" >> /dev/kmsg

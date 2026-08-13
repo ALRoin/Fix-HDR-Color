@@ -135,6 +135,86 @@
             width: 40px; height: 40px; border: 3px solid var(--border-color); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        .modal-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            align-items: center; justify-content: center;
+            z-index: 100;
+            padding: 20px;
+        }
+        .modal-overlay.open { display: flex; }
+
+        .modal-card {
+            background-color: var(--card-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            width: 100%;
+            max-width: 360px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-card h3 {
+            margin: 0 0 4px 0; font-size: 1.05rem; font-weight: 700; color: var(--text-main);
+        }
+        .modal-subtitle {
+            margin: 0 0 16px 0; font-size: 0.78rem; color: var(--text-muted);
+        }
+
+        .modal-field { margin-bottom: 16px; transition: opacity 0.2s ease; }
+        .modal-field label {
+            display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-main); margin-bottom: 6px;
+        }
+        .modal-input {
+            width: 100%; padding: 10px 12px; background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-main); font-size: 0.9rem; outline: none; transition: border-color 0.2s ease;
+        }
+        .modal-input:focus { border-color: var(--accent-color); }
+        .modal-hint {
+            margin: 6px 0 0 0; font-size: 0.72rem; color: var(--text-muted);
+        }
+
+        .modal-field.field-disabled { opacity: 0.5; }
+        .modal-field.field-disabled .modal-input { pointer-events: none; }
+
+        .dropdown-wrapper {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .dropdown-menu {
+            display: none;
+            flex-direction: column;
+            gap: 2px;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 220px;
+            background-color: var(--card-color);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 6px;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+            z-index: 50;
+        }
+        .dropdown-menu.open { display: flex; }
+
+        .menu-item {
+            width: 100%; text-align: left; padding: 11px 12px;
+            background-color: transparent; border: none; border-radius: 7px;
+            color: var(--text-main); font-size: 0.85rem; font-weight: 600; font-family: inherit;
+            cursor: pointer; transition: background-color 0.15s ease;
+        }
+        .menu-item:active { background-color: var(--bg-color); }
+
+        .modal-actions {
+            display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;
+        }
+        .btn-secondary {
+            background: transparent; color: var(--text-muted); border: 1px solid var(--border-color);
+        }
+        .btn-secondary:active { border-color: #3b415a; }
     </style>
 </head>
 <body>
@@ -147,22 +227,63 @@
 
         <div class="search-container">
             <input type="text" id="search-bar" class="search-input" placeholder="Search app name or package...">
-            <select id="action-dropdown" class="icon-dropdown" title="Menu Actions">
-                <option value="" disabled selected hidden>⋮</option>
-                <option value="toggle-system" id="opt-toggle-system">System Apps: OFF</option>
-                <option value="select-all">Select All</option>
-                <option value="clear-all">Clear All</option>
-                <option value="reload">Reload App List</option>
-            </select>
+            <div class="dropdown-wrapper">
+                <button id="action-menu-btn" class="icon-dropdown" title="Menu Actions" type="button">⋮</button>
+                <div class="dropdown-menu" id="action-dropdown-menu">
+                    <button class="menu-item" id="opt-toggle-system" data-action="toggle-system" type="button">System Apps: OFF</button>
+                    <button class="menu-item" data-action="select-all" type="button">Select All</button>
+                    <button class="menu-item" data-action="clear-all" type="button">Clear All</button>
+                    <button class="menu-item" data-action="reload" type="button">Reload App List</button>
+                    <button class="menu-item" data-action="set-interval" type="button">Setting Time Interval</button>
+                </div>
+            </div>
         </div>
     </header>
 
     <main class="app-list" id="app-list"></main>
 
+    <div class="modal-overlay" id="interval-modal-overlay">
+        <div class="modal-card">
+            <h3>Setting Time Interval</h3>
+            <p class="modal-subtitle">Values are in seconds. Applies to the running service.</p>
+
+            <div class="modal-field">
+                <label for="input-foreground-interval">Foreground app check interval</label>
+                <input type="number" id="input-foreground-interval" class="modal-input" min="0.5" step="0.5">
+                <p class="modal-hint">How often to check which app is in the foreground.</p>
+            </div>
+
+            <div class="modal-field" id="hdr-interval-field">
+                <label for="input-hdr-interval">HDR playback check interval</label>
+                <input type="number" id="input-hdr-interval" class="modal-input" min="0.5" step="0.5">
+                <p class="modal-hint" id="hdr-interval-hint">How often to check for HDR video once a target app is in the foreground.</p>
+            </div>
+
+            <div class="modal-field">
+                <label for="input-screenoff-interval">Screen-off check interval</label>
+                <input type="number" id="input-screenoff-interval" class="modal-input" min="1" step="0.5">
+                <p class="modal-hint">How often to check if the screen turned back on.</p>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="btn-cancel-interval">Cancel</button>
+                <button class="btn btn-primary" id="btn-save-interval">Save</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { listPackages, getPackagesInfo, exec, toast } from './kernelsu.js';
 
-        const CONFIG_PATH = "/data/adb/modules/fix_hdr/config.txt";
+        const MODDIR = "/data/adb/modules/fix_hdr";
+        const CONFIG_PATH = `${MODDIR}/config.txt`;
+        const INTERVAL_PATH = `${MODDIR}/intervals.conf`;
+
+        const DEFAULT_INTERVALS = {
+            FOREGROUND_INTERVAL: 2.5,
+            HDR_CHECK_INTERVAL: 2,
+            SCREENOFF_INTERVAL: 5
+        };
 
         let allApps = [];
         let selectedPackages = new Set();
@@ -364,18 +485,137 @@
             }
         }
 
-        document.getElementById('action-dropdown').addEventListener('change', async (e) => {
-            const val = e.target.value;
-            e.target.value = ""; 
+        function parseIntervalConf(text) {
+            const values = { ...DEFAULT_INTERVALS };
+            if (!text) return values;
+            text.split("\n").forEach(line => {
+                const t = line.trim();
+                if (!t || t.startsWith('#')) return;
+                const m = t.match(/^([A-Z_]+)=([0-9]+(\.[0-9]+)?)$/);
+                if (m && Object.prototype.hasOwnProperty.call(values, m[1])) {
+                    values[m[1]] = parseFloat(m[2]);
+                }
+            });
+            return values;
+        }
 
-            if (val === 'toggle-system') {
+        async function detectServiceMode() {
+            try {
+                const res = await exec(`grep -q "is_hdr_active" "${MODDIR}/service.sh" 2>/dev/null && echo hdr_only || echo always`);
+                if (res.errno === 0 && res.stdout && res.stdout.trim() === 'hdr_only') {
+                    return 'hdr_only';
+                }
+            } catch (e) {}
+            return 'always';
+        }
+
+        async function openIntervalModal() {
+            const overlay = document.getElementById('interval-modal-overlay');
+            const hdrField = document.getElementById('hdr-interval-field');
+            const hdrInput = document.getElementById('input-hdr-interval');
+            const hdrHint = document.getElementById('hdr-interval-hint');
+
+            let intervals = { ...DEFAULT_INTERVALS };
+            try {
+                const res = await exec(`cat "${INTERVAL_PATH}" 2>/dev/null`);
+                if (res.errno === 0) {
+                    intervals = parseIntervalConf(res.stdout);
+                }
+            } catch (e) {}
+
+            document.getElementById('input-foreground-interval').value = intervals.FOREGROUND_INTERVAL;
+            document.getElementById('input-hdr-interval').value = intervals.HDR_CHECK_INTERVAL;
+            document.getElementById('input-screenoff-interval').value = intervals.SCREENOFF_INTERVAL;
+
+            const mode = await detectServiceMode();
+            if (mode === 'hdr_only') {
+                hdrField.classList.remove('field-disabled');
+                hdrInput.disabled = false;
+                hdrHint.textContent = "How often to check for HDR video once a target app is in the foreground.";
+            } else {
+                hdrField.classList.add('field-disabled');
+                hdrInput.disabled = true;
+                hdrHint.textContent = "Only available when service2.sh (HDR-Only mode) is active.";
+            }
+
+            overlay.classList.add('open');
+        }
+
+        function closeIntervalModal() {
+            document.getElementById('interval-modal-overlay').classList.remove('open');
+        }
+
+        async function saveIntervals() {
+            const fg = parseFloat(document.getElementById('input-foreground-interval').value);
+            const hdr = parseFloat(document.getElementById('input-hdr-interval').value);
+            const off = parseFloat(document.getElementById('input-screenoff-interval').value);
+
+            if (!(fg > 0) || !(hdr > 0) || !(off > 0)) {
+                toast("Please enter valid positive numbers.");
+                return;
+            }
+
+            const content = "# Fix HDR interval configuration\n" +
+                            "# Values are in seconds\n\n" +
+                            `FOREGROUND_INTERVAL=${fg}\n` +
+                            `HDR_CHECK_INTERVAL=${hdr}\n` +
+                            `SCREENOFF_INTERVAL=${off}\n`;
+
+            try {
+                const b64 = btoa(unescape(encodeURIComponent(content)));
+                const cmd = `mkdir -p "${MODDIR}" && echo "${b64}" | base64 -d > "${INTERVAL_PATH}" && chmod 666 "${INTERVAL_PATH}"`;
+
+                const res = await exec(cmd);
+                if (res.errno === 0) {
+                    toast("Time intervals saved!");
+                    closeIntervalModal();
+                } else {
+                    toast("Failed to save time intervals.");
+                }
+            } catch (err) {
+                toast("Error saving time intervals.");
+            }
+        }
+
+        document.getElementById('btn-cancel-interval').addEventListener('click', closeIntervalModal);
+        document.getElementById('btn-save-interval').addEventListener('click', saveIntervals);
+        document.getElementById('interval-modal-overlay').addEventListener('click', (e) => {
+            if (e.target.id === 'interval-modal-overlay') closeIntervalModal();
+        });
+
+        function closeActionMenu() {
+            document.getElementById('action-dropdown-menu').classList.remove('open');
+        }
+
+        document.getElementById('action-menu-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('action-dropdown-menu').classList.toggle('open');
+        });
+
+        document.getElementById('action-dropdown-menu').addEventListener('click', async (e) => {
+            const item = e.target.closest('.menu-item');
+            if (!item) return;
+            const action = item.getAttribute('data-action');
+            closeActionMenu();
+
+            if (action === 'toggle-system') {
                 toggleSystemApps();
-            } else if (val === 'select-all') {
+            } else if (action === 'select-all') {
                 selectAll(true);
-            } else if (val === 'clear-all') {
+            } else if (action === 'clear-all') {
                 selectAll(false);
-            } else if (val === 'reload') {
+            } else if (action === 'reload') {
                 await loadApps();
+            } else if (action === 'set-interval') {
+                await openIntervalModal();
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('action-dropdown-menu');
+            const btn = document.getElementById('action-menu-btn');
+            if (menu.classList.contains('open') && !menu.contains(e.target) && e.target !== btn) {
+                closeActionMenu();
             }
         });
 

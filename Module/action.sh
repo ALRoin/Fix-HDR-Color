@@ -2,11 +2,19 @@
 MODDIR=${0%/*}
 TOGGLE_FILE="$MODDIR/disable_service"
 DEBUG_FILE="$MODDIR/enable_debug"
-LOG_FILE="$LOG_DIR/debug.log"
+LOG_FILE="$MODDIR/debug.log"
 TMP_EVENT="/data/local/tmp/fix_hdr_events"
 
 is_service_running() {
   pgrep -f "$MODDIR/service.sh" > /dev/null 2>&1
+}
+
+get_current_overlay_mode() {
+  if grep -q "is_hdr_active" "$MODDIR/service.sh" 2>/dev/null; then
+    echo "hdr_only"
+  else
+    echo "always"
+  fi
 }
 
 check_key() {
@@ -40,12 +48,19 @@ get_menu_text() {
         echo "Enable Debug Logging (Currently: DISABLED)"
       fi
       ;;
-    4) echo "View Recent Debug Logs";;
-    5) echo "Exit Menu";;
+    4)
+      if [ "$(get_current_overlay_mode)" = "hdr_only" ]; then
+        echo "Switch to Always Disable Mode (Currently: HDR-Only Mode)"
+      else
+        echo "Switch to HDR-Only Mode (Currently: Always Disable Mode)"
+      fi
+      ;;
+    5) echo "View Recent Debug Logs";;
+    6) echo "Exit Menu";;
   esac
 }
 
-MAX_ITEMS=5
+MAX_ITEMS=6
 
 echo "========================================"
 echo "    Fix HDR Volume Control Menu         "
@@ -57,7 +72,17 @@ while [ $i -le $MAX_ITEMS ]; do
   i=$((i + 1))
 done
 echo "----------------------------------------"
-echo " Navigation:"
+echo " PRESS VOLUME DOWN TO BEGIN SETUP "
+echo "----------------------------------------"
+
+# Wait for Vol Down to start
+while true; do
+  check_key 60
+  [ $? -eq 1 ] && break
+done
+
+echo ""
+echo "ENTERING SELECTION MODE"
 echo "  Vol DOWN = Next Option"
 echo "  Vol UP   = Confirm Selection"
 echo "========================================"
@@ -113,6 +138,32 @@ while true; do
         fi
         ;;
       4)
+        CURRENT_MODE=$(get_current_overlay_mode)
+        if [ "$CURRENT_MODE" = "hdr_only" ]; then
+          TARGET_SRC="$MODDIR/service1.sh"
+          NEW_MODE_NAME="Always Disable"
+        else
+          TARGET_SRC="$MODDIR/service2.sh"
+          NEW_MODE_NAME="HDR-Only"
+        fi
+
+        if [ ! -f "$TARGET_SRC" ]; then
+          echo "[!] ERROR: $TARGET_SRC not found. Cannot switch mode."
+        else
+          pkill -f "$MODDIR/service.sh" 2>/dev/null
+          cp -f "$TARGET_SRC" "$MODDIR/service.sh"
+          chmod 755 "$MODDIR/service.sh"
+          echo "[*] Switched to $NEW_MODE_NAME mode."
+
+          if [ ! -f "$TOGGLE_FILE" ]; then
+            sh "$MODDIR/service.sh" &
+            echo "[+] Service restarted with new mode (PID: $(pgrep -f "$MODDIR/service.sh"))"
+          else
+            echo "[i] Service is currently STOPPED; new mode will apply next time it's started."
+          fi
+        fi
+        ;;
+      5)
         echo "--- Recent Debug Logs ---"
         if [ -f "$DEBUG_FILE" ] && [ -f "$LOG_FILE" ] && [ -s "$LOG_FILE" ]; then
           tail -n 12 "$LOG_FILE"
@@ -120,7 +171,7 @@ while true; do
           echo "No log entries. Debug mode is currently DISABLED."
         fi
         ;;
-      5)
+      6)
         echo "Exiting menu..."
         ;;
     esac
